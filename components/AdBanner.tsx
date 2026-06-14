@@ -10,10 +10,13 @@ interface AdBannerProps {
 export default function AdBanner({ slot, format = "auto", className = "" }: AdBannerProps) {
   useEffect(() => {
     try {
-      // @ts-expect-error adsbygoogle injected by Google
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
+      const ins = document.querySelector(`ins[data-ad-slot="${slot}"]`);
+      if (ins && !ins.getAttribute("data-adsbygoogle-status")) {
+        // @ts-expect-error adsbygoogle injected by Google
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      }
     } catch {}
-  }, []);
+  }, [slot]);
 
   return (
     <ins
