@@ -34,6 +34,34 @@ export default function HomePage() {
         </Suspense>
       </section>
 
+      {/* Document Generators section */}
+      <section className="max-w-7xl mx-auto px-4 pb-8">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-xl font-extrabold text-gray-900">Document Generators</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Create professional business documents — free, no sign-up required</p>
+            </div>
+            <a href="/generate" className="text-sm font-semibold text-[#e8394d] hover:underline shrink-0">View all →</a>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { href: "/generate/invoice", icon: "🧾", label: "Invoice", desc: "GST & Tax invoice", bg: "bg-green-50" },
+              { href: "/generate/salary-slip", icon: "💼", label: "Salary Slip", desc: "Monthly payslip", bg: "bg-blue-50" },
+              { href: "/generate/rent-receipt", icon: "🏠", label: "Rent Receipt", desc: "House rent receipt", bg: "bg-orange-50" },
+              { href: "/generate/purchase-order", icon: "📦", label: "Purchase Order", desc: "Vendor PO", bg: "bg-purple-50" },
+            ].map((g) => (
+              <a key={g.href} href={g.href}
+                className={`${g.bg} rounded-xl p-4 hover:shadow-sm transition-all group border border-transparent hover:border-gray-200`}>
+                <div className="text-2xl mb-2">{g.icon}</div>
+                <p className="font-semibold text-gray-800 text-sm group-hover:text-[#e8394d] transition-colors">{g.label}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{g.desc}</p>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section className="max-w-5xl mx-auto px-4 py-14">
         <h2 className="text-3xl font-bold text-gray-900 text-center mb-10">Better in every way</h2>

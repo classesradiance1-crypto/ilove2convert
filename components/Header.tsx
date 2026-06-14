@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/lib/AuthContext";
 
 const convertLinks = [
   { label: "PDF to Word", href: "/pdf-to-word" },
@@ -24,6 +25,14 @@ const allToolsLinks = [
   { label: "Sign PDF", href: "/sign-pdf" },
   { label: "Edit PDF", href: "/edit-pdf" },
   { label: "OCR PDF", href: "/ocr-pdf" },
+];
+
+const generateLinks = [
+  { label: "🧾 Invoice Generator", href: "/generate/invoice" },
+  { label: "💼 Salary Slip", href: "/generate/salary-slip" },
+  { label: "🏠 Rent Receipt", href: "/generate/rent-receipt" },
+  { label: "📦 Purchase Order", href: "/generate/purchase-order" },
+  { label: "📄 All Generators →", href: "/generate" },
 ];
 
 function Dropdown({ label, links }: { label: string; links: { label: string; href: string }[] }) {
@@ -61,8 +70,62 @@ function Dropdown({ label, links }: { label: string; links: { label: string; hre
   );
 }
 
+function UserMenu({ user, logout }: { user: { name: string; email: string; plan: string }; logout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 hover:border-[#e8394d] transition-colors">
+        <div className="w-6 h-6 rounded-full bg-[#e8394d] flex items-center justify-center text-white text-xs font-bold">
+          {user.name?.charAt(0).toUpperCase()}
+        </div>
+        <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate">{user.name}</span>
+        <svg className={`w-3 h-3 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+          <div className="px-4 py-2 border-b border-gray-50">
+            <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
+            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+            <span className="text-xs font-semibold text-[#e8394d]">{user.plan?.toUpperCase()}</span>
+          </div>
+          <Link href="/dashboard" onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#e8394d]">
+            📊 Dashboard
+          </Link>
+          <Link href="/dashboard?tab=settings" onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#e8394d]">
+            ⚙️ Settings
+          </Link>
+          <Link href="/pricing" onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#e8394d]">
+            ⭐ Upgrade Plan
+          </Link>
+          <div className="border-t border-gray-50 mt-1 pt-1">
+            <button onClick={() => { setOpen(false); logout(); }}
+              className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50">
+              🚪 Sign Out
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
@@ -80,16 +143,23 @@ export default function Header() {
           <Link href="/compress-pdf" className="text-sm font-medium text-gray-700 hover:text-[#e8394d] transition-colors">Compress PDF</Link>
           <Dropdown label="Convert PDF" links={convertLinks} />
           <Dropdown label="All PDF Tools" links={allToolsLinks} />
+          <Dropdown label="Generate Docs" links={generateLinks} />
         </nav>
 
         <div className="hidden md:flex items-center gap-3 shrink-0">
           <Link href="/donate" className="text-sm font-medium text-[#e8394d] hover:text-[#d42a3e] transition-colors flex items-center gap-1">
-            ❤️ Donate
+            ☕ Buy Me a Coffee
           </Link>
-          <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-[#e8394d] transition-colors">Login</Link>
-          <Link href="/signup" className="bg-[#e8394d] text-white text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-[#d42a3e] transition-colors">
-            Sign up
-          </Link>
+          {user ? (
+            <UserMenu user={user} logout={logout} />
+          ) : (
+            <>
+              <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-[#e8394d] transition-colors">Login</Link>
+              <Link href="/signup" className="bg-[#e8394d] text-white text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-[#d42a3e] transition-colors">
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
 
         <button className="md:hidden text-gray-600 ml-auto" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
@@ -109,7 +179,8 @@ export default function Header() {
             { label: "PDF to Word", href: "/pdf-to-word" },
             { label: "JPG to PDF", href: "/jpg-to-pdf" },
             { label: "All Tools", href: "/" },
-            { label: "❤️ Donate", href: "/donate" },
+            { label: "📄 Generate Docs", href: "/generate" },
+            { label: "☕ Buy Me a Coffee", href: "/donate" },
           ].map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)}
               className="hover:text-[#e8394d] py-1 border-b border-gray-50 last:border-0">
@@ -117,8 +188,17 @@ export default function Header() {
             </Link>
           ))}
           <div className="flex gap-3 pt-2">
-            <Link href="/login" className="flex-1 text-center border border-gray-200 rounded-full py-2 hover:border-[#e8394d] hover:text-[#e8394d]">Login</Link>
-            <Link href="/signup" className="flex-1 text-center bg-[#e8394d] text-white rounded-full py-2">Sign up</Link>
+            {user ? (
+              <>
+                <Link href="/dashboard" className="flex-1 text-center border border-gray-200 rounded-full py-2 hover:border-[#e8394d] hover:text-[#e8394d]">Dashboard</Link>
+                <button onClick={logout} className="flex-1 text-center bg-gray-100 rounded-full py-2">Sign Out</button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="flex-1 text-center border border-gray-200 rounded-full py-2 hover:border-[#e8394d] hover:text-[#e8394d]">Login</Link>
+                <Link href="/signup" className="flex-1 text-center bg-[#e8394d] text-white rounded-full py-2">Sign up</Link>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -14,7 +14,7 @@ export default function PremiumBanner() {
         href="/donate"
         className="shrink-0 bg-[#e8394d] hover:bg-[#d42a3e] text-white font-bold px-6 py-2.5 rounded-full transition-colors text-sm"
       >
-        Donate ❤️
+        ☕ Buy Me a Coffee
       </Link>
     </div>
   );

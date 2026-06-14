@@ -1,67 +1,87 @@
 -- ============================================================
--- ILove2Convert Database Schema
--- Run this once in your Aiven MySQL database
+-- ILove2Convert  –  TiDB Cloud (MySQL-compatible) Schema
 -- ============================================================
 
--- Users table
+CREATE DATABASE IF NOT EXISTS ilove2convert
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE ilove2convert;
+
+-- ── Users ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
+  id            BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(100) NOT NULL,
-  email         VARCHAR(255) NOT NULL UNIQUE,
+  email         VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  plan          ENUM('free', 'premium', 'business') DEFAULT 'free',
-  is_verified   TINYINT(1) DEFAULT 0,
-  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_email (email)
-);
+  plan          ENUM('free','premium','business') NOT NULL DEFAULT 'free',
+  is_verified   TINYINT(1)   NOT NULL DEFAULT 0,
+  google_id     VARCHAR(255) NULL,
+  avatar_url    VARCHAR(500) NULL,
+  phone         VARCHAR(30)  NULL,
+  country       VARCHAR(60)  NULL,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Sessions table (for tracking active sessions)
-CREATE TABLE IF NOT EXISTS sessions (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  user_id    INT NOT NULL,
-  token_hash VARCHAR(255) NOT NULL,
-  ip_address VARCHAR(45),
-  user_agent TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  expires_at DATETIME NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_token (token_hash),
-  INDEX idx_user (user_id)
-);
+-- ── Audit Log  (every auth event) ────────────────────────────
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id         BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id    BIGINT       NULL,
+  event      VARCHAR(50)  NOT NULL,
+  email      VARCHAR(255) NULL,
+  ip_address VARCHAR(64)  NULL,
+  user_agent TEXT         NULL,
+  meta       JSON         NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_user  (user_id),
+  INDEX idx_audit_event (event),
+  INDEX idx_audit_ts    (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Activity logs table (every tool usage)
+-- ── Activity Logs (tool usage) ────────────────────────────────
 CREATE TABLE IF NOT EXISTS activity_logs (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  user_id     INT NULL,                          -- NULL = anonymous user
-  session_id  VARCHAR(64) NULL,                  -- anonymous session id
+  id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id     BIGINT       NULL,
+  session_id  VARCHAR(64)  NULL,
   tool_slug   VARCHAR(100) NOT NULL,
   tool_name   VARCHAR(100) NOT NULL,
-  file_name   VARCHAR(255),
-  file_size   INT,                               -- bytes
-  status      ENUM('started', 'success', 'error') DEFAULT 'started',
-  error_msg   TEXT NULL,
-  ip_address  VARCHAR(45),
-  user_agent  TEXT,
-  duration_ms INT NULL,                          -- processing time
-  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  INDEX idx_user (user_id),
-  INDEX idx_tool (tool_slug),
-  INDEX idx_created (created_at)
-);
+  file_name   VARCHAR(255) NULL,
+  file_size   INT          NULL,
+  status      ENUM('started','success','error') NOT NULL DEFAULT 'started',
+  error_msg   TEXT         NULL,
+  ip_address  VARCHAR(64)  NULL,
+  user_agent  TEXT         NULL,
+  duration_ms INT          NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_al_user    (user_id),
+  INDEX idx_al_tool    (tool_slug),
+  INDEX idx_al_session (session_id),
+  INDEX idx_al_ts      (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Auth logs (login/logout/signup events)
-CREATE TABLE IF NOT EXISTS auth_logs (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  user_id    INT NULL,
-  event      ENUM('signup', 'login', 'logout', 'login_failed', 'password_reset') NOT NULL,
-  email      VARCHAR(255),
-  ip_address VARCHAR(45),
-  user_agent TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  INDEX idx_user (user_id),
-  INDEX idx_event (event)
-);
-saas
+-- ── Sessions (optional server-side sessions) ──────────────────
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id         BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id    BIGINT       NOT NULL,
+  token_hash VARCHAR(64)  NOT NULL,
+  ip_address VARCHAR(64)  NULL,
+  user_agent TEXT         NULL,
+  expires_at DATETIME     NOT NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_sessions_token (token_hash),
+  INDEX idx_sessions_user (user_id),
+  INDEX idx_sessions_exp  (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Password Reset Tokens ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS password_resets (
+  id         BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id    BIGINT       NOT NULL,
+  token_hash VARCHAR(64)  NOT NULL,
+  expires_at DATETIME     NOT NULL,
+  used       TINYINT(1)   NOT NULL DEFAULT 0,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_pr_token (token_hash),
+  INDEX idx_pr_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

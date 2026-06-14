@@ -4,73 +4,63 @@ import path from "path";
 
 let pool: mysql.Pool | null = null;
 
-function getSslCa(): Buffer | undefined {
-  // 1. Base64 env var (Vercel / production)
-  if (process.env.DB_SSL_CA_CONTENT) {
-    return Buffer.from(process.env.DB_SSL_CA_CONTENT, "base64");
-  }
-
-  // 2. Explicit path from env
-  if (process.env.DB_SSL_CA && fs.existsSync(process.env.DB_SSL_CA)) {
-    return fs.readFileSync(process.env.DB_SSL_CA);
-  }
-
-  // 3. ca.pem inside the project root (ilove2convert/ca.pem)
-  const localPath = path.join(process.cwd(), "ca.pem");
-  if (fs.existsSync(localPath)) {
-    return fs.readFileSync(localPath);
-  }
-
-  // 4. One level up (legacy location)
-  const parentPath = path.join(process.cwd(), "..", "ca.pem");
-  if (fs.existsSync(parentPath)) {
-    return fs.readFileSync(parentPath);
-  }
-
-  return undefined;
-}
-
 export function getPool(): mysql.Pool {
   if (pool) return pool;
 
-  const ca = getSslCa();
+  // Load TiDB CA certificate
+  const caPath = process.env.TIDB_CA_PATH
+    ? path.resolve(process.cwd(), process.env.TIDB_CA_PATH)
+    : path.resolve(process.cwd(), "certs/ca.pem");
+
+  const ca = fs.existsSync(caPath) ? fs.readFileSync(caPath) : undefined;
 
   pool = mysql.createPool({
-    host: process.env.DB_HOST || "kirodb-exespay-2e5e.e.aivencloud.com",
-    port: parseInt(process.env.DB_PORT || "14952"),
-    user: process.env.DB_USER || "avnadmin",
-    password: process.env.DB_PASSWORD || "AVNS_bU4TB96Va_bf6cmGmvw",
-    database: process.env.DB_NAME || "defaultdb",
-    ssl: ca
-      ? { ca, rejectUnauthorized: true }
-      : { rejectUnauthorized: false },
+    host:     process.env.TIDB_HOST     || "gateway01.ap-southeast-1.prod.alicloud.tidbcloud.com",
+    port:     Number(process.env.TIDB_PORT || 4000),
+    user:     process.env.TIDB_USER     || "NPZan9v1x78oLU8.root",
+    password: process.env.TIDB_PASSWORD || "POL6Tg2P24q4FeU6",
+    database: process.env.TIDB_DATABASE || "ilove2convert",
+    ssl: ca ? { ca } : { rejectUnauthorized: true },
     waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    connectTimeout: 10000,
+    connectionLimit:    10,
+    queueLimit:         0,
+    connectTimeout:     15000,
+    timezone:           "Z",
   });
 
   return pool;
 }
 
-// SELECT queries — returns rows array
-export async function query<T = unknown[]>(
+// SELECT — returns typed rows array
+export async function query<T = Record<string, unknown>>(
   sql: string,
-  params?: (string | number | null | boolean)[]
-): Promise<T> {
+  params?: (string | number | boolean | null)[]
+): Promise<T[]> {
   const db = getPool();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [rows] = await db.execute(sql, params as any);
-  return rows as T;
+  const [rows] = await db.execute<mysql.RowDataPacket[]>(sql, params ?? []);
+  return rows as T[];
 }
 
-// INSERT / UPDATE / DELETE — returns ResultSetHeader with insertId
+// INSERT / UPDATE / DELETE — returns insertId and affectedRows
 export async function execute(
   sql: string,
-  params?: (string | number | null | boolean)[]
-): Promise<mysql.ResultSetHeader> {
+  params?: (string | number | boolean | null)[]
+): Promise<{ insertId: number; rowCount: number }> {
   const db = getPool();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [result] = await db.execute(sql, params as any);
-  return result as mysql.ResultSetHeader;
+  const [result] = await db.execute<mysql.ResultSetHeader>(sql, params ?? []);
+  return {
+    insertId: result.insertId ?? 0,
+    rowCount: result.affectedRows ?? 0,
+  };
+}
+
+// Test the connection
+export async function testConnection(): Promise<boolean> {
+  try {
+    await query("SELECT 1 AS ok");
+    return true;
+  } catch (e) {
+    console.error("TiDB connection test failed:", e);
+    return false;
+  }
 }

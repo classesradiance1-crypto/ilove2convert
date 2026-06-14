@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
     }
 
-    const user = await findUserByEmail(email);
+    const user = await findUserByEmail(email.trim());
 
     if (!user) {
       await logAuthEvent({ event: "login_failed", email, ipAddress: ip, userAgent: ua });
@@ -24,9 +24,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    await logAuthEvent({ userId: user.id, event: "login", email, ipAddress: ip, userAgent: ua });
+    // Set cookie first, then log (non-blocking)
+    await setAuthCookie({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      plan: user.plan,
+    });
 
-    await setAuthCookie({ id: user.id, name: user.name, email: user.email, plan: user.plan });
+    logAuthEvent({ userId: user.id, event: "login", email: user.email, ipAddress: ip, userAgent: ua }).catch(console.error);
 
     return NextResponse.json({
       success: true,
