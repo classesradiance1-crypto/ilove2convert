@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseFiles } from "@/lib/parseForm";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
-import pdfParse from "pdf-parse";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse: (buffer: Buffer) => Promise<{ text: string }> = require("pdf-parse");
 
 function getParagraphType(line: string): string {
   if (line.length < 60 && /^[A-Z0-9]/.test(line) && !/[.?!,]$/.test(line)) return "h2";
